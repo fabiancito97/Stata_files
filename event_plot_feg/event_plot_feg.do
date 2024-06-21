@@ -5,29 +5,21 @@ capture program drop event_plot_feg
 program event_plot_feg, eclass
 	version 17.0
 	
-	*local cmdline: copy local 0
-	*gettoken mat 0 : 0, parse(",[") match(paren)
-	
-	*if "`mat'" == "," local mat = ""
-	
-	*display as text "`mat'"
-	
 	syntax [namelist(name=mat)] ,   ///
-		pre_cof(string asis) ///
-		post_cof(string asis) ///
-		levels(numlist min=1 max=2) ///
+		pre_cof(string asis) /// prefix of leads
+		post_cof(string asis) /// prefix of lags
+		levels(numlist min=1 max=2) /// ci levels to graph
 		[ /// 
-		compar(string asis) /// if we have a comparison period
+		compar(string asis) /// if we have a comparison period, defaul compar == -1
 		zero /// set coefficient = 0 in comparison period
 		add_note(string) /// add note to graph
 		did_imputation(integer 0) /// if use did_imputation results to grapg
-		dropline /// vertical line
-		perturbline(string asis) /// perturbation of line 
+		dropline /// vertical line in comparison period
+		perturbline(string asis) /// move dropline 
 		n_size(string asis) /// specify N 
 		uci /// add uniform confidence intervals 
 		ciplot(string asis) /// ciplot type
 		*] /// other options are twoway custom graphs
-
 
 
 preserve
@@ -154,27 +146,20 @@ local p_pos = trim(string(r(p),"%-9.3fc"))
 }
 
 
-clear
+*** Prepare to make plot ----------------------------------------------------------------
+
 svmat results
+drop if results1 == .
 
-*drop if results1 == .
+*** Zero, if require
 
-if "`zero'" != "" & "`compar'" =="" { 
+if "`compar'" == "" local compar = -1
+
+if "`zero'" != "" { 
 	count 
     local obs = r(N) + 1
     set obs `obs'
-    replace results1 = -1 in `obs'
-	replace results2 = 0   in `obs'
-    replace results3 = 0   in `obs'
-    replace results4 = 0   in `obs'
-    
-}
-
-if "`zero'" != "" & "`compar'" !="" { 
-	count 
-    local obs = r(N) + 1
-    set obs `obs'
-    replace results1 = -`compar' in `obs'
+    replace results1 = `compar' in `obs'
 	replace results2 = 0   in `obs'
     replace results3 = 0   in `obs'
     replace results4 = 0   in `obs'
@@ -192,9 +177,19 @@ if "`comand2'" == "xtevent" {
 
 }
 
-sort results1
 
-tempvar range line1 significant // for vertical lines
+if "`dropline'" != "" {
+	tempvar line1
+	if "`perturbline'" == "" generate `line1' = -1  
+	if "`perturbline'" != "" generate `line1' = -1 + `perturbline' 
+	
+	local vert_line (dropline `range' `line1', lcolor(black) lwidth(vthin) lpattern(dash) mcolor(none) base(`min_y'))
+
+}
+
+*** Create labels and axis
+
+sort results1
 
 * x-axis
 summarize results1 
@@ -218,9 +213,6 @@ forvalues r=2(1)`vars'{
 	local var_min `var_min' results`r'
 }
 
-*ds results1, not
-*local var_min = r(varlist)
-
 tempvar min max
 
 egen `min' = rowmin(`var_min')
@@ -239,9 +231,9 @@ local delta  = r(delta)
 local factor = r(factor)
 local format = r(format)
 
+tempvar range 
 generate `range' = `max_y'
 
-* labels
 local labels
 local val = `min_y' - `delta'
 while `val' < `max_y'{
@@ -258,275 +250,59 @@ local labels ylabel(`labels')
 local labels ylabel(`min_y'(`delta')`max_y')
 
 
-*if "`compar'" != "" generate `line1' = `compar' + `perturbline' //+ 0.5
+*** Indicate significant coeffficient
+tempvar significant 
+generate `significant' = (results3 > 0 & results4 > 0) | (results3 < 0 & results4 < 0) // 
 
-generate `significant' = (results3 > 0 & results4 > 0) | (results3 < 0 & results4 < 0) // significant coef
-
-*format `format'  results2 results3 results4 `range' 
-
-if "`dropline'" != "" {
-	if "`perturbline'" == "" generate `line1' = -1  
-	if "`perturbline'" != "" generate `line1' = -1 + `perturbline' 
-	
-	local vert_line (dropline `range' `line1', lcolor(black) lwidth(vthin) lpattern(dash) mcolor(none) base(`min_y'))
-
-}
-
-
-if wordcount("`levels'") == 2 local sencond_level (rspike results5 results6 results1, lcolor(black) mlwidth(thin) msize(vsmall))
-
-if "`uci'" != "" local uci_graph (rspike results5 results6 results1, lcolor(black) mlwidth(thin) msize(vsmall))
-
-if "`ciplot'" == "" local ciplot rcap
+*** CI plot
+if "`ciplot'" == "" local ciplot_cmd (rcap results3 results4 results1, lcolor(black)) 
 if "`ciplot'" == "rcap" local ciplot_cmd (`ciplot' results3 results4 results1, lcolor(black))
 if "`ciplot'" == "rarea" local ciplot_cmd (`ciplot' results3 results4 results1,  color(gs9))
 if "`ciplot'" == "line" local ciplot_cmd (`ciplot' results3 results1,  lcolor(black) lpattern(dash)) (`ciplot' results4 results1,  lcolor(black) lpattern(dash))
 
-
-twoway  `vert_line' /// vertical line 
-	   `ciplot_cmd' ///
-	   `sencond_level' ///
-	   `uci_graph' ///
-       /// (line results2 results1, lcolor(black))  ///
-	   /// (scatter results2 results1 if `significant' == 0, mcolor(white) mlcolor(black) mlwidth(medthin)) ///
-	   /// (scatter results2 results1 if `significant' == 1, mcolor(red) mlcolor(black) mlwidth(medthin)) ///
-	   (scatter results2 results1, mcolor(white) mlcolor(black) mlwidth(medthin)) ///
-	   , ///
-	   /// ylabel(`min_y'(`delta')`max_y') ///
-	   `labels' ///
-	   yline(0, lcolor(red)) ///
-	   note("N = `N'" "p-value pre = `p_pre'" "p-value post = `p_pos'", size(medium)) ///
-	   `options'
+*** CI plot, second level
+if wordcount("`levels'") == 2{
 	
-restore
-
-*drop results*
-
-}
-	
-end
-
-*#### -----------------------------------------------------------------------------------------
-
-capture program drop heter_plot_feg
-program heter_plot_feg, eclass
-	version 17.0
-	
-	*local cmdline: copy local 0
-	*gettoken mat 0 : 0, parse(",[") match(paren)
-	
-	*if "`mat'" == "," local mat = ""
-	
-	*display as text "`mat'"
-	
-	syntax namelist(name=mat), [  ///
-		single ///
-		*] /// other options are twoway custom graphs
-	
-
-quietly {
-
-preserve
-clear
-matrix define results = `mat'
-
-svmat results
-drop if results1 == .
-
-* y-axis
-ds results1, not
-local var_min = r(varlist)
-
-tempvar min max
-
-egen `min' = rowmin(`var_min')
-
-egen `max' = rowmax(`var_min')
-
-sum `min'
-local l_minimun = r(min)
-sum `max' 
-local u_maximun = r(max)
-
-limits, lims( `l_minimun' `u_maximun')
-local max_y  = r(max_val)
-local min_y  = r(min_val)
-local delta  = r(delta)
-local factor = r(factor)
-local format = r(format)
-
-* labels
-local labels
-local val = `min_y' - `delta'
-while `val' < `max_y'{
-	local val = `val' + `delta'
-*forvalues val = `min_y'(`delta')`max_y'{
-	if round(`val', 1/`factor') != 0 {
-		local newlab = trim(string(`val',"`format'"))
-		local labels `"`labels' `val' "`newlab'""'
-	}
-}
-local labels `"`labels' 0 "0" "'
-
-if "`single'" == "" {
-
-twoway (rcap    results3 results4 results1 if results1 == 2, lcolor(blue)) ///
-       (rspike  results5 results6 results1 if results1 == 2, lcolor(blue)) /// 
-	   (scatter results2 results1 if results1 == 2, mcolor(blue) mlcolor(blue) mlwidth(medthin) msymbol(T)) ///
-	   (rcap   results3 results4 results1 if results1 == 1, lcolor(green)) ///
-	   (rspike results5 results6 results1 if results1 == 1, lcolor(green)) ///
-	   (scatter results2 results1 if results1 == 1, mcolor(green) mlcolor(green) mlwidth(medthin) msymbol(S)) ///
-	   (rcap   results3 results4 results1 if results1 == 0, lcolor(orange)) ///
-	   (rspike results5 results6 results1 if results1 == 0, lcolor(orange)) ///
-	   (scatter results2 results1 if results1 == 0, mcolor(orange) mlcolor(orange) mlwidth(medthin)) ///
-	   , ///
-	   ylabel(`labels') ///
-	   yline(0, lcolor(red)) ///
-	   `options'
-}
-
-if "`single'" != "" {
-
-twoway (rcap results3 results4 results1, lcolor(green)) ///
-	  (rspike  results5 results6 results1, lcolor(green)) /// 
-	   (scatter results2 results1, mcolor(green) mlcolor(green) mlwidth(medthin) msymbol(S)) ///
-	   , ///
-	   ylabel(`labels') ///
-	   yline(0, lcolor(red)) ///
-	   `options'
-}	
-
-restore
-}
-	
-end
-
-*#### -----------------------------------------------------------------------------------------
-
-capture program drop heter_plot_mult
-program heter_plot_mult, eclass
-	version 17.0
-	
-	*local cmdline: copy local 0
-	*gettoken mat 0 : 0, parse(",[") match(paren)
-	
-	*if "`mat'" == "," local mat = ""
-	
-	*display as text "`mat'"
-	
-	syntax namelist(name=mat), [  ///
-		single ///
-		*] /// other options are twoway custom graphs
-	
-
-quietly {
-
-preserve
-clear
-matrix define results = `mat'
-
-svmat results
-drop if results1 == .
-
-* y-axis
-ds results1 results2, not
-local var_min = r(varlist)
-
-
-tempvar min max
-egen `min' = rowmin(`var_min')
-
-egen `max' = rowmax(`var_min')
-
-sum `min'
-local l_minimun = r(min)
-sum `max' 
-local u_maximun = r(max)
-
-limits, lims( `l_minimun' `u_maximun')
-local max_y  = r(max_val)
-local min_y  = r(min_val)
-local delta  = r(delta)
-local factor = r(factor)
-local format = r(format)
-
-* labels
-local labels
-local val = `min_y' - `delta'
-while `val' < `max_y'{
-	local val = `val' + `delta'
-*forvalues val = `min_y'(`delta')`max_y'{
-	if round(`val', 1/`factor') != 0 {
-		local newlab = trim(string(`val',"`format'"))
-		local labels `"`labels' `val' "`newlab'""'
-	}
-}
-local labels `"`labels' 0 "0" "'
-local labels ylabel(`labels')
-
-local text = `max_y'
+	if "`ciplot'" == "" local ciplot2_cmd (rspike results5 results6 results1, lcolor(black) mlwidth(thin) msize(vsmall))
+	if "`ciplot'" == "rcap" local ciplot2_cmd (rspike results5 results6 results1, lcolor(black) mlwidth(thin) msize(vsmall))
+	if "`ciplot'" == "rarea" local ciplot2_cmd (`ciplot' results5 results6 results1,  color(gs11))
+	if "`ciplot'" == "line" local ciplot2_cmd (`ciplot' results5 results6 results1,  lcolor(black) lpattern(dash)) (`ciplot' results5 results6 results1,  lcolor(black) lpattern(dash))
  
-twoway (rcap    results4 results5 results1 if results1 == 2 & results2 == 1, lcolor(blue)) ///
-       (rspike  results6 results7 results1 if results1 == 2 & results2 == 1, lcolor(blue)) /// 
-	   (scatter results3 results1 if results1 == 2 & results2 == 1, mcolor(blue) mlcolor(blue) mlwidth(medthin) msymbol(T)) ///
-	   (rcap    results4 results5 results1 if results1 == 1 & results2 == 1, lcolor(green)) ///
-	   (rspike  results6 results7 results1 if results1 == 1 & results2 == 1, lcolor(green)) ///
-	   (scatter results3 results1 if results1 == 1 & results2 == 1, mcolor(green) mlcolor(green) mlwidth(medthin) msymbol(S)) ///
-	   (rcap    results4 results5 results1 if results1 == 0 & results2 == 1, lcolor(orange)) ///
-	   (rspike  results6 results7 results1 if results1 == 0 & results2 == 1, lcolor(orange)) ///
-	   (scatter results3 results1 if results1 == 0 & results2 == 1, mcolor(orange) mlcolor(orange) mlwidth(medthin)) ///
-	   ///
-	   (rcap    results4 results5 results1 if results1 == 6 & results2 == 2, lcolor(blue)) ///
-       (rspike  results6 results7 results1 if results1 == 6 & results2 == 2, lcolor(blue)) /// 
-	   (scatter results3 results1 if results1 == 6 & results2 == 2, mcolor(blue) mlcolor(blue) mlwidth(medthin) msymbol(T)) ///
-	   (rcap    results4 results5 results1 if results1 == 5 & results2 == 2, lcolor(green)) ///
-	   (rspike  results6 results7 results1 if results1 == 5 & results2 == 2, lcolor(green)) ///
-	   (scatter results3 results1 if results1 == 5 & results2 == 2, mcolor(green) mlcolor(green) mlwidth(medthin) msymbol(S)) ///
-	   (rcap    results4 results5 results1 if results1 == 4 & results2 == 2, lcolor(orange)) ///
-	   (rspike  results6 results7 results1 if results1 == 4 & results2 == 2, lcolor(orange)) ///
-	   (scatter results3 results1 if results1 == 4 & results2 == 2, mcolor(orange) mlcolor(orange) mlwidth(medthin)) ///
-	   , `options' ///
-	   `labels' ///
-	   yline(0, lcolor(red)) ///
-	   text(`text' 1 "OLS", box bcolor(white%100) fcolor(white%100) ) ///
-	   text(`text' 5 "CSDID", box bcolor(white%100) fcolor(white%100))
+ }
 
+*** CI plot, uniform CI
+if "`uci'" != ""{
+	if "`ciplot'" == "" local uci_graph (rspike results5 results6 results1, lcolor(black) mlwidth(thin) msize(vsmall))
+	if "`ciplot'" == "rcap" local uci_graph (rspike results5 results6 results1, lcolor(black) mlwidth(thin) msize(vsmall))
+	if "`ciplot'" == "rarea" local uci_graph (`ciplot' results5 results6 results1,  color(gs11))
+	if "`ciplot'" == "line" local uci_graph (`ciplot' results5 results6 results1,  lcolor(black) lpattern(dash)) (`ciplot' results5 results6 results1,  lcolor(black) lpattern(dash))
+ 
+}
+
+*** Point of coefficient estimations
+local point_estim (scatter results2 results1, mcolor(white) mlcolor(black) mlwidth(medthin))
+
+*** Line indicator of 0
+local yzero yline(0, lcolor(red))
+
+*** Note N and p-values
+local note_stats note("N = `N'" "p-value pre = `p_pre'" "p-value post = `p_pos'", size(medium))
+
+*** Command 
+local graph_run twoway `vert_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point_estim' , `labels' `yzero' `note_stats' `options'
+
+*** Run graph
+`graph_run'
 	
 restore
+
 }
 	
 end
 
-*#### -----------------------------------------------------------------------------------------
+*#### Aux functions -----------------------------------------------------------------------------------------
 
-capture program drop event_make_matrix
-program define event_make_matrix
-version 16.0
-/*
- From a regression (with reghdfe), make the matrix to plot an event study
-*/
-	syntax namelist(name=vars)
-	
-	tokenize "`vars'"
-	
-	matrix estim = `1'
-	*matrix estim = r(table)
-	
-	matrix results = .,.,.,.
-	
-foreach var of local vars  {
-	matrix results =  results \ ///
-	estim[rownumb(estim,"b"),  colnumb(estim, "`var'")], /// coefficient
-    estim[rownumb(estim,"ll"), colnumb(estim, "`var'")], /// low limit ci
-	estim[rownumb(estim,"ul"), colnumb(estim, "`var'")], /// upper limit ci
-	real(substr("`var'", strlen("`var'") - 3, strlen("`var'")))
-}
-	
-end
-
-
-********** To calculate the limits in axis of graph
-
+*** To calculate the limits in axis of graph
 capture program drop limits
 program define limits, rclass
 version 17.0
@@ -611,7 +387,7 @@ return local format  "`format'"
 
 end
 
-********** To calculate the min-max in axis of graph
+*** To calculate the min-max in axis of graph
 
 capture program drop up_lim
 program up_lim, rclass 
