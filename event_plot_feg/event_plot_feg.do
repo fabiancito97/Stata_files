@@ -22,6 +22,10 @@ program event_plot_feg, eclass
 		*] /// other options are twoway custom graphs
 
 
+*** Initializate
+tempname estim betas results uniform_ci
+
+
 preserve
 clear
 
@@ -37,17 +41,17 @@ local N = trim(string(e(N),"%-9.0fc")) // observations
 local level  = r(level) // confidence level
 
 * Confidence intervals 90% and 95%
-matrix define betas = e(b)'
+matrix define `betas' = e(b)'
 mata st_matrix("se",sqrt(diagonal(st_matrix("e(V)")))) // matrix of se
 
-matrix estim = betas
+matrix `estim' = `betas'
 
 local levels: list sort levels
 
 foreach level of local levels{ 
 
 local alpha = 1 - (`level'/100)
-matrix estim = estim, betas + invt(e(df_r), `alpha'/2)*se, betas + invt(e(df_r),1-`alpha'/2)*se
+matrix `estim' = `estim', `betas' + invt(e(df_r), `alpha'/2)*se, `betas' + invt(e(df_r),1-`alpha'/2)*se
 }
 
 * Multiple test of coefficients
@@ -56,7 +60,7 @@ local post_test
 local index_pre = 0
 local index_post = 0
 
-mat results = J(1,`=colsof(estim)'+1, .)
+mat `results' = J(1,`=colsof(`estim')'+1, .)
 
 if "`comand2'" != "xtevent" local vars = e(indepvars)
 if "`comand2'" == "xtevent" local vars = e(inexog)
@@ -66,12 +70,12 @@ display as text "`vars'"
 foreach var of local vars {
 	if strpos("`var'", "`pre_cof'") {
 		local pre_test `pre_test' (`var'=0)
-		matrix results = results \ -real(substr("`var'", strlen("`pre_cof'")+1, strlen("`var'"))), estim[rownumb(estim,"`var'"), ....] 
+		matrix `results' = `results' \ -real(substr("`var'", strlen("`pre_cof'")+1, strlen("`var'"))), `estim'[rownumb(`estim',"`var'"), ....] 
 	}
 	
 	if strpos("`var'", "`post_cof'") {
 		local post_test `post_test' (`var'=0)
-		matrix results = results \ real(substr("`var'", strlen("`post_cof'")+1, strlen("`var'"))), estim[rownumb(estim,"`var'"), ....]
+		matrix `results' = `results' \ real(substr("`var'", strlen("`post_cof'")+1, strlen("`var'"))), `estim'[rownumb(`estim',"`var'"), ....]
 	}
 }
 
@@ -85,12 +89,12 @@ if "`uci'" != ""{
 
 uci 
 
-matrix uniform_ci = r(rtable2)
-if "`comand2'" != "xtevent" matrix uniform_ci = uniform_ci[....,4..5]
-if "`comand2'" == "xtevent" matrix uniform_ci = uniform_ci[2...,4..5]
-matrix uniform_ci = J(1,2, .) \ uniform_ci
+matrix `uniform_ci' = r(rtable2)
+if "`comand2'" != "xtevent" matrix `uniform_ci' = `uniform_ci'[....,4..5]
+if "`comand2'" == "xtevent" matrix `uniform_ci' = `uniform_ci'[2...,4..5]
+matrix `uniform_ci' = J(1,2, .) \ `uniform_ci'
 
-matrix results = results, uniform_ci
+matrix `results' = `results', `uniform_ci'
 }
 
 }
@@ -148,8 +152,8 @@ local p_pos = trim(string(r(p),"%-9.3fc"))
 
 *** Prepare to make plot ----------------------------------------------------------------
 
-svmat results
-drop if results1 == .
+svmat `results'
+drop if `results'1 == .
 
 *** Zero, if require
 
@@ -159,10 +163,10 @@ if "`zero'" != "" {
 	count 
     local obs = r(N) + 1
     set obs `obs'
-    replace results1 = `compar' in `obs'
-	replace results2 = 0   in `obs'
-    replace results3 = 0   in `obs'
-    replace results4 = 0   in `obs'
+    replace `results'1 = `compar' in `obs'
+	replace `results'2 = 0   in `obs'
+    replace `results'3 = 0   in `obs'
+    replace `results'4 = 0   in `obs'
     
 }
 
@@ -170,29 +174,19 @@ if "`comand2'" == "xtevent" {
 	count 
     local obs = r(N) + 1
     set obs `obs'
-    replace results1 = -2 in `obs'
-	replace results2 = 0   in `obs'
-    replace results3 = 0   in `obs'
-    replace results4 = 0   in `obs'
-
-}
-
-
-if "`dropline'" != "" {
-	tempvar line1
-	if "`perturbline'" == "" generate `line1' = -1  
-	if "`perturbline'" != "" generate `line1' = -1 + `perturbline' 
-	
-	local vert_line (dropline `range' `line1', lcolor(black) lwidth(vthin) lpattern(dash) mcolor(none) base(`min_y'))
+    replace `results'1 = -2 in `obs'
+	replace `results'2 = 0   in `obs'
+    replace `results'3 = 0   in `obs'
+    replace `results'4 = 0   in `obs'
 
 }
 
 *** Create labels and axis
 
-sort results1
+sort `results'1
 
 * x-axis
-summarize results1 
+summarize `results'1 
 local max_x = r(max)
 local min_x = r(min)
 
@@ -205,12 +199,12 @@ local min_x = r(min)
 *quietly: summarize results4 
 *local u_maximun = r(max)
 
-local vars=`=colsof(results)'
+local vars=`=colsof(`results')'
 
 local var_min
 
 forvalues r=2(1)`vars'{
-	local var_min `var_min' results`r'
+	local var_min `var_min' `results'`r'
 }
 
 tempvar min max
@@ -252,35 +246,47 @@ local labels ylabel(`min_y'(`delta')`max_y')
 
 *** Indicate significant coeffficient
 tempvar significant 
-generate `significant' = (results3 > 0 & results4 > 0) | (results3 < 0 & results4 < 0) // 
+generate `significant' = (`results'3 > 0 & `results'4 > 0) | (`results'3 < 0 & `results'4 < 0) // 
+
+
+*** Line in comparison, if required
+if "`dropline'" != "" {
+	tempvar line1
+	if "`perturbline'" == "" generate `line1' = -1  
+	if "`perturbline'" != "" generate `line1' = -1 + `perturbline' 
+	
+	local vert_line (dropline `range' `line1', lcolor(black) lwidth(vthin) lpattern(dash) mcolor(none) base(`min_y'))
+
+}
+
 
 *** CI plot
-if "`ciplot'" == "" local ciplot_cmd (rcap results3 results4 results1, lcolor(black)) 
-if "`ciplot'" == "rcap" local ciplot_cmd (`ciplot' results3 results4 results1, lcolor(black))
-if "`ciplot'" == "rarea" local ciplot_cmd (`ciplot' results3 results4 results1,  color(gs9))
-if "`ciplot'" == "line" local ciplot_cmd (`ciplot' results3 results1,  lcolor(black) lpattern(dash)) (`ciplot' results4 results1,  lcolor(black) lpattern(dash))
+if "`ciplot'" == "" local ciplot_cmd (rcap `results'3 `results'4 `results'1, lcolor(black)) 
+if "`ciplot'" == "rcap" local ciplot_cmd (`ciplot' `results'3 `results'4 `results'1, lcolor(black))
+if "`ciplot'" == "rarea" local ciplot_cmd (`ciplot' `results'3 `results'4 `results'1,  color(gs9))
+if "`ciplot'" == "line" local ciplot_cmd (`ciplot' `results'3 `results'1,  lcolor(black) lpattern(dash)) (`ciplot' `results'4 `results'1,  lcolor(black) lpattern(dash))
 
 *** CI plot, second level
 if wordcount("`levels'") == 2{
 	
-	if "`ciplot'" == "" local ciplot2_cmd (rspike results5 results6 results1, lcolor(black) mlwidth(thin) msize(vsmall))
-	if "`ciplot'" == "rcap" local ciplot2_cmd (rspike results5 results6 results1, lcolor(black) mlwidth(thin) msize(vsmall))
-	if "`ciplot'" == "rarea" local ciplot2_cmd (`ciplot' results5 results6 results1,  color(gs11))
-	if "`ciplot'" == "line" local ciplot2_cmd (`ciplot' results5 results6 results1,  lcolor(black) lpattern(dash)) (`ciplot' results5 results6 results1,  lcolor(black) lpattern(dash))
+	if "`ciplot'" == "" local ciplot2_cmd (rspike `results'5 `results'6 `results'1, lcolor(black) mlwidth(thin) msize(vsmall))
+	if "`ciplot'" == "rcap" local ciplot2_cmd (rspike `results'5 `results'6 `results'1, lcolor(black) mlwidth(thin) msize(vsmall))
+	if "`ciplot'" == "rarea" local ciplot2_cmd (`ciplot' `results'5 `results'6 `results'1,  color(gs11))
+	if "`ciplot'" == "line" local ciplot2_cmd (`ciplot' `results'5 `results'6 `results'1,  lcolor(black) lpattern(dash)) (`ciplot' `results'5 `results'6 `results'1,  lcolor(black) lpattern(dash))
  
  }
 
 *** CI plot, uniform CI
 if "`uci'" != ""{
-	if "`ciplot'" == "" local uci_graph (rspike results5 results6 results1, lcolor(black) mlwidth(thin) msize(vsmall))
-	if "`ciplot'" == "rcap" local uci_graph (rspike results5 results6 results1, lcolor(black) mlwidth(thin) msize(vsmall))
-	if "`ciplot'" == "rarea" local uci_graph (`ciplot' results5 results6 results1,  color(gs11))
-	if "`ciplot'" == "line" local uci_graph (`ciplot' results5 results6 results1,  lcolor(black) lpattern(dash)) (`ciplot' results5 results6 results1,  lcolor(black) lpattern(dash))
+	if "`ciplot'" == "" local uci_graph (rspike `results'5 `results'6 `results'1, lcolor(black) mlwidth(thin) msize(vsmall))
+	if "`ciplot'" == "rcap" local uci_graph (rspike `results'5 `results'6 `results'1, lcolor(black) mlwidth(thin) msize(vsmall))
+	if "`ciplot'" == "rarea" local uci_graph (`ciplot' `results'5 `results'6 `results'1,  color(gs11))
+	if "`ciplot'" == "line" local uci_graph (`ciplot' `results'5 `results'6 `results'1,  lcolor(black) lpattern(dash)) (`ciplot' `results'5 `results'6 `results'1,  lcolor(black) lpattern(dash))
  
 }
 
 *** Point of coefficient estimations
-local point_estim (scatter results2 results1, mcolor(white) mlcolor(black) mlwidth(medthin))
+local point_estim (scatter `results'2 `results'1, mcolor(white) mlcolor(black) mlwidth(medthin))
 
 *** Line indicator of 0
 local yzero yline(0, lcolor(red))
@@ -289,11 +295,11 @@ local yzero yline(0, lcolor(red))
 local note_stats note("N = `N'" "p-value pre = `p_pre'" "p-value post = `p_pos'", size(medium))
 
 *** Command 
-local graph_run twoway `vert_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point_estim' , `labels' `yzero' `note_stats' `options'
+local graph_run twoway `vert_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point_estim', `labels' `yzero' `note_stats' `options'
 
 *** Run graph
 `graph_run'
-	
+
 restore
 
 }
