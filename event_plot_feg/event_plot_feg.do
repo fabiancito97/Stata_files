@@ -19,6 +19,7 @@ program event_plot_feg, eclass
 		n_size(string asis) /// specify N 
 		uci /// add uniform confidence intervals 
 		ciplot(string asis) /// ciplot type
+		pretrend /// make pre-trend line
 		*] /// other options are twoway custom graphs
 
 
@@ -294,8 +295,13 @@ local yzero yline(0, lcolor(red))
 *** Note N and p-values
 local note_stats note("N = `N'" "p-value pre = `p_pre'" "p-value post = `p_pos'", size(medium))
 
+*** pre-trend line
+
+if "`pretrend'"!="" local pretrend lfit `results'2 `results'1 if `results'1<-1
+
+
 *** Command 
-local graph_run twoway `vert_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point_estim', `labels' `yzero' `note_stats' `options'
+local graph_run twoway `vert_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point_estim' `pretrend', `labels' `yzero' `note_stats' `options' 
 
 *** Run graph
 `graph_run'
