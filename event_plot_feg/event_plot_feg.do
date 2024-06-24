@@ -19,7 +19,7 @@ program event_plot_feg, eclass
 		n_size(string asis) /// specify N 
 		uci /// add uniform confidence intervals 
 		ciplot(string asis) /// ciplot type
-		pretrend /// make pre-trend line
+		onlypre /// graph only pre- coefficients
 		*] /// other options are twoway custom graphs
 
 
@@ -156,6 +156,11 @@ local p_pos = trim(string(r(p),"%-9.3fc"))
 svmat `results'
 drop if `results'1 == .
 
+
+*** Only pre graph
+
+if "`onlypre'"!="" keep if `results'1 < -1
+
 *** Zero, if require
 
 if "`compar'" == "" local compar = -1
@@ -260,7 +265,6 @@ if "`dropline'" != "" {
 
 }
 
-
 *** CI plot
 if "`ciplot'" == "" local ciplot_cmd (rcap `results'3 `results'4 `results'1, lcolor(black)) 
 if "`ciplot'" == "rcap" local ciplot_cmd (`ciplot' `results'3 `results'4 `results'1, lcolor(black))
@@ -292,16 +296,13 @@ local point_estim (scatter `results'2 `results'1, mcolor(white) mlcolor(black) m
 *** Line indicator of 0
 local yzero yline(0, lcolor(red))
 
+
 *** Note N and p-values
 local note_stats note("N = `N'" "p-value pre = `p_pre'" "p-value post = `p_pos'", size(medium))
 
-*** pre-trend line
-
-if "`pretrend'"!="" local pretrend lfit `results'2 `results'1 if `results'1<-1
-
-
 *** Command 
-local graph_run twoway `vert_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point_estim' `pretrend', `labels' `yzero' `note_stats' `options' 
+local graph_run twoway `vert_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point_estim', `labels' `yzero' `note_stats' `options' 
+
 
 *** Run graph
 `graph_run'
