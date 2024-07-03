@@ -20,6 +20,7 @@ program event_plot_feg, eclass
 		uci /// add uniform confidence intervals 
 		ciplot(string asis) /// ciplot type
 		onlypre /// graph only pre- coefficients
+		note_stats /// add note of stats
 		*] /// other options are twoway custom graphs
 
 
@@ -163,9 +164,10 @@ if "`onlypre'"!="" keep if `results'1 < -1
 
 *** Zero, if require
 
-if "`compar'" == "" local compar = -1
+
 
 if "`zero'" != "" { 
+	if "`compar'" == "" local compar = -1
 	count 
     local obs = r(N) + 1
     set obs `obs'
@@ -298,7 +300,7 @@ local yzero yline(0, lcolor(red))
 
 
 *** Note N and p-values
-local note_stats note("N = `N'" "p-value pre = `p_pre'" "p-value post = `p_pos'", size(medium))
+if "`note_stats'" != "" local note_stats note("N = `N'" "p-value pre = `p_pre'" "p-value post = `p_pos'", size(medium))
 
 *** Command 
 local graph_run twoway `vert_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point_estim', `labels' `yzero' `note_stats' `options' 
