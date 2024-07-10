@@ -193,11 +193,14 @@ if "`comand2'" == "xtevent" {
 
 }
 
-*** Make adjustment
+
+*** Calculate pre-trend
 reg `results'2 `results'1 if `results'1<=`compar'
 
 tempvar pre_trend
 predict `pre_trend', xb
+
+*** Make adjustment
 if "`detrend'"!=""{
 
 replace `results'2=`results'2-`pre_trend'
@@ -288,6 +291,8 @@ local labels ylabel(`min_y'(`delta')`max_y')
 tempvar significant 
 generate `significant' = (`results'3 > 0 & `results'4 > 0) | (`results'3 < 0 & `results'4 < 0) // 
 
+*** Pre-trend
+if "`detrend'"=="" local pre_trend_line (connected `pre_trend' `results'1, color(black) msize(small))
 
 *** Line in comparison, if required
 if "`dropline'" != "" {
@@ -334,7 +339,7 @@ local yzero yline(0, lcolor(red))
 if "`note_stats'" != "" local note_stats note("N = `N'" "p-value pre = `p_pre'" "p-value post = `p_pos'", size(medium))
 
 *** Command 
-local graph_run twoway `vert_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point_estim', `labels' `yzero' `note_stats' `options' 
+local graph_run twoway `vert_line' `pre_trend_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point_estim', `labels' `yzero' `note_stats' `options' 
 
 
 *** Run graph
