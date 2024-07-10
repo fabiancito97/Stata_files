@@ -26,8 +26,10 @@ program event_plot_feg, eclass
 
 
 *** Initializate
-tempname estim betas results uniform_ci se
+tempname estim betas results uniform_ci se results
+tempname save_estimates
 
+estimates store `save_estimates'
 
 preserve
 clear
@@ -157,6 +159,7 @@ local p_pos = trim(string(r(p),"%-9.3fc"))
 
 *** Prepare to make plot ----------------------------------------------------------------
 
+
 svmat `results'
 drop if `results'1 == .
 
@@ -191,7 +194,7 @@ if "`comand2'" == "xtevent" {
 }
 
 *** Make adjustment
-reg `results'2 `results'1 if `results'1<`compar'
+reg `results'2 `results'1 if `results'1<=`compar'
 
 tempvar pre_trend
 predict `pre_trend', xb
@@ -338,6 +341,8 @@ local graph_run twoway `vert_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point
 `graph_run'
 
 restore
+
+estimates restore `save_estimates'
 
 }
 	
