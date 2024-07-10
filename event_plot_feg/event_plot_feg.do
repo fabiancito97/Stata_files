@@ -21,11 +21,12 @@ program event_plot_feg, eclass
 		ciplot(string asis) /// ciplot type
 		onlypre /// graph only pre- coefficients
 		note_stats /// add note of stats
+		detrend /// perform detrend 
 		*] /// other options are twoway custom graphs
 
 
 *** Initializate
-tempname estim betas results uniform_ci
+tempname estim betas results uniform_ci se
 
 
 preserve
@@ -36,6 +37,8 @@ quietly {
 local comand1 = e(cmd)
 local comand2 = e(cmd2)
 
+local df = e(df_r)
+
 if "`comand1'" == "reghdfe"  | "`comand1'" == "reghdfejl" | "`comand2'" == "xtevent" {
 
 * Output
@@ -44,7 +47,7 @@ local level  = r(level) // confidence level
 
 * Confidence intervals 90% and 95%
 matrix define `betas' = e(b)'
-mata st_matrix("se",sqrt(diagonal(st_matrix("e(V)")))) // matrix of se
+mata st_matrix("`se'",sqrt(diagonal(st_matrix("e(V)")))) // matrix of se
 
 matrix `estim' = `betas'
 
@@ -53,7 +56,7 @@ local levels: list sort levels
 foreach level of local levels{ 
 
 local alpha = 1 - (`level'/100)
-matrix `estim' = `estim', `betas' + invt(e(df_r), `alpha'/2)*se, `betas' + invt(e(df_r),1-`alpha'/2)*se
+matrix `estim' = `estim', `betas' + invt(`df', `alpha'/2)*`se', `betas' + invt(`df',1-`alpha'/2)*`se'
 }
 
 * Multiple test of coefficients
@@ -164,8 +167,6 @@ if "`onlypre'"!="" keep if `results'1 < -1
 
 *** Zero, if require
 
-
-
 if "`zero'" != "" { 
 	if "`compar'" == "" local compar = -1
 	count 
@@ -188,6 +189,34 @@ if "`comand2'" == "xtevent" {
     replace `results'4 = 0   in `obs'
 
 }
+
+*** Make adjustment
+reg `results'2 `results'1 if `results'1<`compar'
+
+tempvar pre_trend
+predict `pre_trend', xb
+if "`detrend'"!=""{
+
+replace `results'2=`results'2-`pre_trend'
+*** first level
+replace `results'3=`results'3-`pre_trend'
+replace `results'4=`results'4-`pre_trend'
+*** second level level
+replace `results'5=`results'5-`pre_trend'
+replace `results'6=`results'6-`pre_trend'
+
+sum `results'2 if `results'1==`compar'
+local shift = r(min)
+replace `results'2=`results'2-`shift'
+*** first level
+replace `results'3=`results'3-`shift'
+replace `results'4=`results'4-`shift'
+*** second level level
+replace `results'5=`results'5-`shift'
+replace `results'6=`results'6-`shift'
+
+}
+
 
 *** Create labels and axis
 
@@ -297,7 +326,6 @@ local point_estim (scatter `results'2 `results'1, mcolor(white) mlcolor(black) m
 
 *** Line indicator of 0
 local yzero yline(0, lcolor(red))
-
 
 *** Note N and p-values
 if "`note_stats'" != "" local note_stats note("N = `N'" "p-value pre = `p_pre'" "p-value post = `p_pos'", size(medium))
