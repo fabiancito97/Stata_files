@@ -22,6 +22,7 @@ program event_plot_feg, eclass
 		onlypre /// graph only pre- coefficients
 		note_stats /// add note of stats
 		detrend /// perform detrend 
+		ltrend /// show linear pre-trend
 		*] /// other options are twoway custom graphs
 
 
@@ -292,7 +293,7 @@ tempvar significant
 generate `significant' = (`results'3 > 0 & `results'4 > 0) | (`results'3 < 0 & `results'4 < 0) // 
 
 *** Pre-trend
-if "`detrend'"=="" local pre_trend_line (connected `pre_trend' `results'1, color(black) msize(small))
+if "`detrend'"=="" & "`ltrend'" != "" local pre_trend_line (connected `pre_trend' `results'1, color(black) msize(small))
 
 *** Line in comparison, if required
 if "`dropline'" != "" {
