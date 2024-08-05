@@ -27,7 +27,7 @@ program event_plot_feg, eclass
 
 
 *** Initializate
-tempname estim betas results uniform_ci se results
+tempname estim betas results uniform_ci se results tabl
 tempname save_estimates
 
 estimates store `save_estimates'
@@ -109,12 +109,12 @@ matrix `results' = `results', `uniform_ci'
 
 if e(cmd) == "csdid2" {
 * Output
-local N = trim(string(`n_size',"%-9.0fc"))
+*local N = trim(string(`n_size',"%-9.0fc"))
 
 *estat event
-matrix define betas = e(b)'
+matrix define `betas' = e(b)'
 
-matrix estim = betas
+matrix `estim' = `betas'
 
 local levels: list sort levels
 foreach level of local levels{ 
@@ -123,27 +123,27 @@ foreach level of local levels{
 *matrix tabl =  r(table)'
 *matrix tabl = tabl[...., 5..6]
 
-matrix tabl = e(table_`level')
- matrix tabl = tabl[...., 5..6]
+matrix `tabl' = e(table_`level')
+ matrix `tabl' = `tabl'[...., 5..6]
  
-matrix estim = estim, tabl
+matrix `estim' = `estim', `tabl'
 
 }
 
-local vars: rownames estim
-mat results = J(1,`=colsof(estim)'+1, .)
+local vars: rownames `estim'
+mat `results' = J(1,`=colsof(`estim')'+1, .)
 
 
 
 foreach var of local vars {
 	if strpos("`var'", "`pre_cof'") {
 		local pre_test `pre_test' (`var'=0)
-		matrix results = results \ -real(substr("`var'", strlen("`pre_cof'")+1, strlen("`var'"))), estim[rownumb(estim,"`var'"), ....] 
+		matrix `results' = `results' \ -real(substr("`var'", strlen("`pre_cof'")+1, strlen("`var'"))), `estim'[rownumb(`estim',"`var'"), ....] 
 	}
 	
 	if strpos("`var'", "`post_cof'") {
 		local post_test `post_test' (`var'=0)
-		matrix results = results \ real(substr("`var'", strlen("`post_cof'")+1, strlen("`var'"))), estim[rownumb(estim,"`var'"), ....]
+		matrix `results' = `results' \ real(substr("`var'", strlen("`post_cof'")+1, strlen("`var'"))), `estim'[rownumb(`estim',"`var'"), ....]
 	}
 }
 
@@ -154,15 +154,18 @@ test `post_test'
 local p_pos = trim(string(r(p),"%-9.3fc"))
 
 
-
 }
 
 
 *** Prepare to make plot ----------------------------------------------------------------
 
+mat list `results'
+
+*matrix check =  `results'
 
 svmat `results'
 drop if `results'1 == .
+
 
 
 *** Only pre graph
@@ -171,8 +174,10 @@ if "`onlypre'"!="" keep if `results'1 < -1
 
 *** Zero, if require
 
+if "`compar'" == "" local compar = -1
+
 if "`zero'" != "" { 
-	if "`compar'" == "" local compar = -1
+	
 	count 
     local obs = r(N) + 1
     set obs `obs'
@@ -197,6 +202,7 @@ if "`comand2'" == "xtevent" {
 
 *** Calculate pre-trend
 reg `results'2 `results'1 if `results'1<=`compar'
+
 
 tempvar pre_trend
 predict `pre_trend', xb
