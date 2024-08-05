@@ -27,7 +27,7 @@ program event_plot_feg, eclass
 
 
 *** Initializate
-tempname estim betas results uniform_ci se results tabl
+tempname estim betas results uniform_ci se results tabl table
 tempname save_estimates
 
 estimates store `save_estimates'
@@ -42,7 +42,9 @@ local comand2 = e(cmd2)
 
 local df = e(df_r)
 
-if "`comand1'" == "reghdfe"  | "`comand1'" == "reghdfejl" | "`comand2'" == "xtevent" {
+if "`comand1'" == "reghdfe"  | "`comand1'" == "reghdfejl" | "`comand1'" == "lpdid" | "`comand2'" == "xtevent" {
+
+*if "`comand1'" == "reghdfe"  | "`comand1'" == "reghdfejl" | "`comand2'" == "xtevent" {
 
 * Output
 local N = trim(string(e(N),"%-9.0fc")) // observations
@@ -51,6 +53,20 @@ local level  = r(level) // confidence level
 * Confidence intervals 90% and 95%
 matrix define `betas' = e(b)'
 mata st_matrix("`se'",sqrt(diagonal(st_matrix("e(V)")))) // matrix of se
+
+*}
+
+*if "`comand1'" == "lpdid" {
+*
+*matrix define `table' = e(results) 
+*matrix define `betas' = `table'[1,....]
+*
+*----
+*
+*mata st_matrix("`se'",sqrt(diagonal(st_matrix("e(V)")))) // matrix of se
+*
+*
+*}
 
 matrix `estim' = `betas'
 
@@ -62,6 +78,11 @@ local alpha = 1 - (`level'/100)
 matrix `estim' = `estim', `betas' + invt(`df', `alpha'/2)*`se', `betas' + invt(`df',1-`alpha'/2)*`se'
 }
 
+matrix check1= `estim'
+matrix check2= `betas'
+matrix check3= `se'
+
+
 * Multiple test of coefficients
 local pre_test 
 local post_test 
@@ -70,10 +91,23 @@ local index_post = 0
 
 mat `results' = J(1,`=colsof(`estim')'+1, .)
 
+
+
 if "`comand2'" != "xtevent" local vars = e(indepvars)
 if "`comand2'" == "xtevent" local vars = e(inexog)
-display as text "`vars'"
+if "`comand1'" == "lpdid"{
 
+	local vars 
+	local post_win = e(post_window)
+	local pre_win = e(pre_window)
+	forvalues h = 2(1)`pre_win'{
+		local vars `vars' `pre_cof'`h'
+	}
+	
+	forvalues h = 0(1)`post_win'{
+		local vars `vars' `post_cof'`h'
+	}
+}
 
 foreach var of local vars {
 	if strpos("`var'", "`pre_cof'") {
@@ -87,11 +121,11 @@ foreach var of local vars {
 	}
 }
 
-test `pre_test'
-local p_pre = trim(string(r(p),"%-9.3fc")) 
+*test `pre_test'
+*local p_pre = trim(string(r(p),"%-9.3fc")) 
 
-test `post_test'
-local p_pos = trim(string(r(p),"%-9.3fc"))
+*test `post_test'
+*local p_pos = trim(string(r(p),"%-9.3fc"))
 
 if "`uci'" != ""{
 
@@ -158,6 +192,7 @@ local p_pos = trim(string(r(p),"%-9.3fc"))
 
 
 *** Prepare to make plot ----------------------------------------------------------------
+
 
 mat list `results'
 
