@@ -2,7 +2,6 @@
 global intent .19040466
 
 capture program drop table_feg2
-
 program table_feg2, eclass byable(recall)
     
 	version 17.0
@@ -12,7 +11,6 @@ program table_feg2, eclass byable(recall)
 				pval /// present pval of coefficients
 				pval_precoef /// for precoef, only present pval
 				addstats(string asis) /// add stats to table
-				addstats_labs(string asis) /// labels to added stats
 				*]
 			
 			
@@ -58,9 +56,9 @@ if "`pval'"=="" {
 
 *matrix `stats' = e(mean) \ e(N) \ e(N_clust)
 
-
-		
-
+if `""`addstats'""' != "" addstatscmd `addstats' nametab(`stats')
+	
+/*
 if "`addstats'" != "" {
 	*local t = 0 // tot of variables and labels
 	local l1 = 0 // number of stats
@@ -92,7 +90,7 @@ if "`addstats'" != "" {
 	
 }
 
-
+*/
 
 *matrix define `p' = e(table)' // p-values matrix
 *matrix `p' =  `p'[...., colnumb(`p', "pvalue")] 
@@ -158,4 +156,29 @@ frmttable, replay(`main') append(`stats') store(`1')
 
 
 end
+
+*#### Auxiliary programs ------------------------------------------------
+
+capture program drop addstatscmd
+program addstatscmd, eclass byable(recall)
+
+	version 17.0
+	
+	syntax  anything, [ ///
+			nametab(string) /// name of the store tab
+			*] //
+				
+	local l1 = 0 
+	foreach word of local anything{
+		 local l1 = `l1' + 1
+		 if `l1' == 1 local added "`word'"
+		 if `l1' != 1 local added `" `added' \ `word' "'
+	}	
+	tempname stats_mat
+	matrix `stats_mat' = `added'	
+	frmttable, statmat(`stats_mat') store(`nametab') `options'
+
+end
+
+
 
