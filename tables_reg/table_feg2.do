@@ -3,156 +3,88 @@ global intent .19040466
 
 capture program drop table_feg2
 program table_feg2, eclass byable(recall)
-    
-	version 17.0
+    version 17.0
 	
-	syntax  namelist(min=1 max=1), ///
+	local cmdline : copy local 0
+	// local 0 save the cmdline
+		local stop 0
+		local tot_betas = 0
+		while !`stop' { 
+			gettoken eqn 0 : 0, parse(" ,[") match(paren)
+			/*
+			gettoken first 0 : 0
+			  which obtains the first token from `0' and saves the rest back in `0'
+			   parse(" ,[") parsing characters
+			   match(paren) specifies that parentheses be matched in determining the token
+			*/
+			
+			
+			
+			IsStop stop : `"`eqn'"'
+			if !`stop' {
+                local tot_betas = `tot_betas' + 1 // sum equations
+				if "`paren'" != "" {		
+					local alleqn "`alleqn' (`eqn')"
+				}
+				else    local alleqn `alleqn' `eqn' 
+			}
+		}
+		local 0 `"`eqn' `0'"'
+
+local options `0'
+
+display `""`alleqn'""'
+*display "`options'"
+
+
+
+
+	
+	syntax , ///
 		    [ ///  /* optionals */
 				pval /// present pval of coefficients
 				pval_precoef /// for precoef, only present pval
 				addstats(string asis) /// add stats to table
+				store(string) /// name of store
+				beta_matrix(string) /// matrix with betas, e(b) is default
+				se_matrix(string) /// matrix with V, e(V) is default
 				*]
 			
 			
+*display "`addstats'"			
 
-qui{
-			
-tokenize `namelist'	
 
 tempname starts starts_post starts_att starts_pre
 tempname stats p betas se stable main 
 
 tempname stable_post stable_att stable_pre
 
-if "`pval'"!="" {
-	matrix `starts_post'=J(1,3,0)
-	matrix `starts_att'=J(1,1,0)
-	
-	
-	if "`pval_precoef'"!="" matrix `starts_pre'=J(1,1,0)
-	if "`pval_precoef'"=="" matrix `starts_pre'=J(1,3,0)
-	
-	local substat_sett substat(2) 
-	local rtitle_cof_itt rtitle("\noalign{\medskip} ITT" \"" \ "") 
-	if "`pval_precoef'"=="" local rtitle_cof_pre rtitle("\noalign{\medskip} Pre coef." \"" \"" )
-	if "`pval_precoef'"!="" local rtitle_cof_pre rtitle("\noalign{\medskip} Pre p-val." )
-	
-}
-if "`pval'"=="" {
-	matrix `starts_post'=J(1,2,0)
-	matrix `starts_att'=J(1,1,0)
-	
-	if "`pval_precoef'"!="" matrix `starts_pre'=J(1,1,0)
-	if "`pval_precoef'"=="" matrix `starts_pre'=J(1,2,0)
-	
-	local substat_sett substat(1) 
-	local cut_stable matrix `stable' = `stable'[....,1..2]
-	local rtitle_cof_itt  rtitle("\noalign{\medskip} ITT" \"") 
-	if "`pval_precoef'"=="" local rtitle_cof_pre rtitle("\noalign{\medskip} Pre coef." \"" )
-	
-}
 
+
+
+capture frmttable, clear(`store')
+
+* FALTA: VER COMO OBTENER P A PARTIR DE e(b) y e(V)
+* LUEGO, CREAR LA TABLA PARA CADA BETA
+
+
+	forvalues k = 1(1)`tot_betas'{
+		    gettoken eqn alleqn : alleqn, parse(" ,[") match(paren)
+			gettoken beta other : eqn, parse(" ,[") match(paren)
+
+		tempname `beta'_tab
+		*maketable `eqn' coeff_matrix(`betas') se_matrix(`se') store(``beta'_tab')
+		maketable `eqn' store(``beta'_tab')
+		
+		if `k' == 1 frmttable, replay(``beta'_tab') store(`store')
+		if `k' != 1 frmttable, replay(`store') append(``beta'_tab') store(`store')
+	}	
+		
 *** Added stats
 
-*matrix `stats' = e(mean) \ e(N) \ e(N_clust)
-
 if `""`addstats'""' != "" addstatscmd `addstats' nametab(`stats')
-	
-/*
-if "`addstats'" != "" {
-	*local t = 0 // tot of variables and labels
-	local l1 = 0 // number of stats
-	local l2 = 0 // number of label
 
-
-	foreach word of local addstats{
-		 local l1 = `l1' + 1
-		 if `l1' == 1 local added "`word'"
-		 if `l1' != 1 local added `" `added' \ `word' "'
-	}	
-	
-	foreach word of local addstats_labs{
-		local l2 = `l2' + 1
-		if `l2' == 1 local added_lab `""`word'""'
-		if `l2' != 1 local added_lab `" `added_lab' \ "`word'" "'
-	}
-	
-	
-		*local tot_labels = `t'/2
-		*
-		*forvalues i = 1(1)`tot_labels'{
-		*    local row`i' = `" "`lab_`i''" "'
-		*}
-	
-	
-	matrix `stats' = `added'
-	frmttable, statmat(`stats') store(`stats') sdec(3 \ 0 \ 0) sfmt(fc) rtitle(`added_lab')
-	
-}
-
-*/
-
-*matrix define `p' = e(table)' // p-values matrix
-*matrix `p' =  `p'[...., colnumb(`p', "pvalue")] 
-matrix define `betas' = e(b)' // betas matrix
-mata st_matrix("`se'",sqrt(diagonal(st_matrix("e(V)"))))
-
-*** p-value
-
-test Dpre1
-matrix define `p' = r(p) // betas matrix
-test Dpost0
-matrix define `p' = `p' \ r(p) // betas matrix
-
-*** ATT
-lincom _b[Dpost0]/${intent}
-matrix `stable_att' = r(estimate)
-
-
-matrix `stable_post' = (`betas'[2,1], `se'[2,1], `p'[2,1])  
-
-if "`pval_precoef'"!="" matrix `stable_pre'  =`p'[1,1]
-if "`pval_precoef'"=="" matrix `stable_pre'  =(`betas'[1,1], `se'[1,1], `p'[1,1])
-
-
-*** Starts for table
-
-matrix `starts_post'[1,1] = (`stable_post'[1,3]<0.10)+(`stable_post'[1,3]<0.05)+(`stable_post'[1,3]<0.01)
-matrix `starts_att'[1,1] = (`stable_post'[1,3]<0.10)+(`stable_post'[1,3]<0.05)+(`stable_post'[1,3]<0.01)
-if "`pval_precoef'"== "" matrix `starts_pre'[1,1] = (`stable_pre'[1,3]<0.10)+(`stable_pre'[1,3]<0.05)+(`stable_pre'[1,3]<0.01)
-*if "`pval_precoef'"== ""
-
-mat list `stable_post' 
-mat list `stable_pre'
-
-
-*matrix `stable' = `stable_post' \ `stable_pre'
-
-*mat list `stable'
-
-
-*matrix `starts' = `starts_post' \ `starts_pre'
-
-
-*** Make table
-`cut_stable' 
-
-frmttable, statmat(`stable_att') store(`stable_att') sdec(3) annotate(`starts_att') asymbol(*,**,***) rtitle("\noalign{\medskip} ATT")
-frmttable, statmat(`stable_post') `substat_sett' sdec(3) store(`stable_post') annotate(`starts_post') asymbol(*,**,***) `rtitle_cof_itt'
-if "`pval_precoef'" == "" frmttable, statmat(`stable_pre') `substat_sett' sdec(3) store(`stable_pre') annotate(`starts_pre') asymbol(*,**,***) `rtitle_cof_pre'
-if "`pval_precoef'" != "" frmttable, statmat(`stable_pre') sdec(3) store(`stable_pre') annotate(`starts_pre') asymbol(*,**,***) brackets([,]) `rtitle_cof_pre'
-
-
-
-frmttable, replay(`stable_att') append(`stable_post') store(`main') 
-frmttable, replay(`main') append(`stable_pre') store(`main') 
-
-
-}
-
-frmttable, replay(`main') append(`stats') store(`1') 
-
-
+frmttable, replay(`store') append(`stats') store(`store') 
 
 
 end
@@ -180,5 +112,110 @@ program addstatscmd, eclass byable(recall)
 
 end
 
+
+capture program drop maketable
+program maketable, eclass byable(recall)
+    version 17.0
+	
+	syntax namelist(min=1 max=1), ///
+		    [ ///  /* optionals */
+				substats(string asis) /// sub stats of coefficient
+				coeffdec(string) /// decimals of coefficient
+				starts(string) /// position for stars, = 0 if not whant stars. default == 1
+				starts_symbol(string asis) /// symbols for starts, default = *,**,***
+				coefflabel(string asis) /// label of coefficient, default = cmd line
+				brackets(string asis) /// brackest to present coeff + substats, default ="","" \ (,) \ [,]
+				coeff_matrix(string asis) /// matrix that store the coefficients, default previous regression
+				se_matrix(string asis) /// matrix that store the se
+				v_matrix(string) /// covariance matrix, default previous regression (doesnt work if se_matrix is declared)
+				store(string) /// table where store
+				*]
+	
+	*** default values
+	
+	if "`starts_symbol'" == "" local starts_symbol `"*,**,***"'
+	if "`brackets'" == "" local brackets `""",""\(,)\[,]"'
+	if `""`coefflabel'""' == "" local coefflabel `namelist'
+	if "`starts'" == "" local starts=1
+	
+	if "`coeff_matrix'"=="" {
+		tempname coeff_matrix
+		matrix `coeff_matrix'= e(b)' 
+	}		
+	
+	if "`v_matrix'"=="" {
+		tempname v_matrix
+		matrix `v_matrix' = e(V)
+	}
+	
+	if "`se_matrix'"=="" {
+		tempname se_matrix
+		mata st_matrix("`se_matrix'",sqrt(diagonal(st_matrix("`v_matrix'"))))
+		local rownames : rownames `coeff_matrix'
+		matrix rownames `se_matrix' = `rownames'
+	}
+
+	
+	local coeff_name `namelist'
+	
+	local coeff = `coeff_matrix'[rownumb(`coeff_matrix',"`coeff_name'"), 1]
+	local se = `se_matrix'[rownumb(`se_matrix',"`coeff_name'"), 1]
+	local p = 2*(normal(-(abs(`coeff')/`se')))
+		
+	local matrix_cmd `coeff'
+	local tot_stats = 1
+	local rtitle "`coefflabel'"
+	
+	foreach stat of local substats{
+		
+		local ++tot_stats
+		
+		if "`stat'"=="se" {
+			local matrix_cmd `matrix_cmd', `se'
+			local rtitle `"`rtitle' \ "" "'
+		}
+		if "`stat'"=="p" {
+			local matrix_cmd `matrix_cmd', `p'
+			local rtitle `"`rtitle' \ "" "'
+		}
+		
+		
+			
+			
+	}
+	tempname matrix_store starts_matrix
+	matrix `matrix_store' = `matrix_cmd'  
+			
+	matrix `starts_matrix'=J(1,`tot_stats',0)
+			
+	
+			
+	if `starts' != 0 matrix `starts_matrix'[1,`starts'] = (`p'<0.10)+(`p'<0.05)+(`p'<0.01)
+	
+	local tot_substats = `tot_stats'-1
+	
+	mat list `starts_matrix'	
+	
+	*display `starts_symbol'
+	
+	frmttable, statmat(`matrix_store') substat(`tot_substats') sdec(`coeffdec') store(`store') annotate(`starts_matrix') asymbol(`starts_symbol')	brackets(`brackets') rtitle(`rtitle') 
+
+
+
+end	
+
+
+capture program drop IsStop
+program define IsStop // this functiond detect a character and stop the loop
+	args stop colon token
+	if 	     `"`token'"' == "[" /*
+		*/ | `"`token'"' == "," /*
+		*/ | `"`token'"' == "if" /*
+		*/ | `"`token'"' == "in" /*
+		*/ | `"`token'"' == "" {
+		c_local `stop' 1
+	}
+	else	c_local `stop' 0
+end
 
 
