@@ -33,14 +33,7 @@ program table_feg2, eclass byable(recall)
 
 local options `0'
 
-display `""`alleqn'""'
-*display "`options'"
-
-
-
-
-	
-	syntax , ///
+syntax , ///
 		    [ ///  /* optionals */
 				pval /// present pval of coefficients
 				pval_precoef /// for precoef, only present pval
@@ -50,23 +43,14 @@ display `""`alleqn'""'
 				se_matrix(string) /// matrix with V, e(V) is default
 				*]
 			
-			
-*display "`addstats'"			
-
-
 tempname starts starts_post starts_att starts_pre
 tempname stats p betas se stable main 
 
 tempname stable_post stable_att stable_pre
 
-
-
-
 capture frmttable, clear(`store')
 
-* FALTA: VER COMO OBTENER P A PARTIR DE e(b) y e(V)
-* LUEGO, CREAR LA TABLA PARA CADA BETA
-
+qui{
 
 	forvalues k = 1(1)`tot_betas'{
 		    gettoken eqn alleqn : alleqn, parse(" ,[") match(paren)
@@ -82,10 +66,12 @@ capture frmttable, clear(`store')
 		
 *** Added stats
 
-if `""`addstats'""' != "" addstatscmd `addstats' nametab(`stats')
+if "`addstats'" != ""{
+	addstatscmd `addstats' nametab(`stats')
+	frmttable, replay(`store') append(`stats') store(`store')
+}	
 
-frmttable, replay(`store') append(`stats') store(`store') 
-
+}
 
 end
 
