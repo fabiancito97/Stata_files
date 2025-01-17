@@ -1,8 +1,7 @@
 
-global intent .19040466
-
 capture program drop table_feg2
 program table_feg2, eclass byable(recall)
+{
     version 17.0
 	
 	local cmdline : copy local 0
@@ -73,13 +72,14 @@ if "`addstats'" != ""{
 
 }
 
+}
 end
 
 *#### Auxiliary programs ------------------------------------------------
 
 capture program drop addstatscmd
 program addstatscmd, eclass byable(recall)
-
+{
 	version 17.0
 	
 	syntax  anything, [ ///
@@ -187,12 +187,13 @@ program maketable, eclass byable(recall)
 	frmttable, statmat(`matrix_store') substat(`tot_substats') sdec(`coeffdec') store(`store') annotate(`starts_matrix') asymbol(`starts_symbol')	brackets(`brackets') rtitle(`rtitle') 
 
 
-
+}
 end	
 
 
 capture program drop IsStop
 program define IsStop // this functiond detect a character and stop the loop
+{
 	args stop colon token
 	if 	     `"`token'"' == "[" /*
 		*/ | `"`token'"' == "," /*
@@ -202,6 +203,7 @@ program define IsStop // this functiond detect a character and stop the loop
 		c_local `stop' 1
 	}
 	else	c_local `stop' 0
+}	
 end
 
 
