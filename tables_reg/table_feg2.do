@@ -72,6 +72,8 @@ if "`addstats'" != ""{
 
 }
 
+frmttable, replay(`store')
+
 }
 end
 
@@ -95,12 +97,13 @@ program addstatscmd, eclass byable(recall)
 	tempname stats_mat
 	matrix `stats_mat' = `added'	
 	frmttable, statmat(`stats_mat') store(`nametab') `options'
-
+}
 end
 
 
 capture program drop maketable
 program maketable, eclass byable(recall)
+{
     version 17.0
 	
 	syntax namelist(min=1 max=1), ///
