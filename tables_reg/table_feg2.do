@@ -65,7 +65,7 @@ qui{
 		
 *** Added stats
 
-if "`addstats'" != ""{
+if `"`addstats'"' != ""{
 	addstatscmd `addstats' nametab(`stats')
 	frmttable, replay(`store') append(`stats') store(`store')
 }	
