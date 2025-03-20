@@ -334,7 +334,7 @@ tempvar significant
 generate `significant' = (`results'3 > 0 & `results'4 > 0) | (`results'3 < 0 & `results'4 < 0) // 
 
 *** Pre-trend
-if "`detrend'"=="" & "`ltrend'" != "" local pre_trend_line (connected `pre_trend' `results'1, color(black) msize(small))
+if "`detrend'"=="" & "`ltrend'" != "" local pre_trend_line (line `pre_trend' `results'1, lcolor(blue) lpattern("-"))
 
 *** Line in comparison, if required
 if "`dropline'" != "" {
