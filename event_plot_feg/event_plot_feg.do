@@ -311,7 +311,7 @@ local factor = r(factor)
 local format = r(format)
 
 tempvar range 
-generate `range' = `max_y'
+
 
 local labels
 local val = `min_y' - `delta'
@@ -322,11 +322,24 @@ while `val' < `max_y'{
 		local newlab = trim(string(`val',"`format'"))
 		local labels `"`labels' `val' "`newlab'""'
 	}
+	
 }
+
+local max_val = `val'
+
+generate `range' = `max_val'
+
+*display as text "`labels'"
+
 local labels `"`labels' 0 "0" "'
 
 local labels ylabel(`labels')
-local labels ylabel(`min_y'(`delta')`max_y')
+
+
+*local labels `"`labels' 0 "0" "'
+
+*local labels ylabel(`labels')
+*local labels ylabel(`min_y'(`delta')`max_y')
 
 
 *** Indicate significant coeffficient
