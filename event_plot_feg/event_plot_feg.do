@@ -392,8 +392,8 @@ local yzero yline(0, lcolor(red))
 if "`note_stats'" != "" local note_stats note("N = `N'" "p-value pre = `p_pre'" "p-value post = `p_pos'", size(medium))
 
 *** Command 
-}
-display as text "LABELS ----------------> `labels'"
+
+*display as text "LABELS ----------------> `labels'"
 
 local graph_run twoway `vert_line' `pre_trend_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point_estim', `labels' `yzero' `note_stats' `options' 
 
@@ -405,7 +405,7 @@ restore
 
 estimates restore `save_estimates'
 
-
+}
 	
 end
 
