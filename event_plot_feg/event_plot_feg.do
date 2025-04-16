@@ -331,10 +331,9 @@ generate `range' = `max_val'
 
 *display as text "`labels'"
 
-local labels `"`labels' 0 "0" "'
-
-local labels ylabel(`labels')
-
+*local labels `"`labels' 0 "0" "'
+*local labels ylabel(`labels')
+*local labels
 
 *local labels `"`labels' 0 "0" "'
 
