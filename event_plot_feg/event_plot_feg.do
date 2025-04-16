@@ -249,7 +249,7 @@ replace `results'2=`results'2-`pre_trend'
 *** first level
 replace `results'3=`results'3-`pre_trend'
 replace `results'4=`results'4-`pre_trend'
-*** second level level
+*** second level
 replace `results'5=`results'5-`pre_trend'
 replace `results'6=`results'6-`pre_trend'
 
@@ -259,7 +259,7 @@ replace `results'2=`results'2-`shift'
 *** first level
 replace `results'3=`results'3-`shift'
 replace `results'4=`results'4-`shift'
-*** second level level
+*** second level
 replace `results'5=`results'5-`shift'
 replace `results'6=`results'6-`shift'
 
@@ -333,13 +333,12 @@ generate `range' = `max_val'
 
 *local labels `"`labels' 0 "0" "'
 *local labels ylabel(`labels')
-local labels
 
 *local labels `"`labels' 0 "0" "'
 
 *local labels ylabel(`labels')
-*local labels ylabel(`min_y'(`delta')`max_y')
-
+local labels ylabel(`min_y'(`delta')`max_y')
+*local labels ""
 
 *** Indicate significant coeffficient
 tempvar significant 
@@ -393,6 +392,9 @@ local yzero yline(0, lcolor(red))
 if "`note_stats'" != "" local note_stats note("N = `N'" "p-value pre = `p_pre'" "p-value post = `p_pos'", size(medium))
 
 *** Command 
+}
+display as text "LABELS ----------------> `labels'"
+
 local graph_run twoway `vert_line' `pre_trend_line' `ciplot2_cmd' `ciplot_cmd' `uci_graph' `point_estim', `labels' `yzero' `note_stats' `options' 
 
 
@@ -403,7 +405,7 @@ restore
 
 estimates restore `save_estimates'
 
-}
+
 	
 end
 
