@@ -15,7 +15,9 @@ program event_plot_feg, eclass
 		add_note(string) /// add note to graph
 		did_imputation(integer 0) /// if use did_imputation results to grapg
 		dropline /// vertical line in comparison period
-		perturbline(string asis) /// move dropline 
+		perturbline(string asis) /// move dropline
+		betas(string asis) /// declare an matrix of betas
+		se(string asis) /// declare a matrix of SE
 		n_size(string asis) /// specify N 
 		uci /// add uniform confidence intervals 
 		ciplot(string asis) /// ciplot type
@@ -27,7 +29,7 @@ program event_plot_feg, eclass
 
 
 *** Initializate
-tempname estim betas results uniform_ci se results tabl table
+tempname estim results uniform_ci results tabl table
 tempname save_estimates
 
 estimates store `save_estimates'
@@ -36,6 +38,32 @@ preserve
 clear
 
 quietly {
+
+
+if "`se'"!="" & "`betas'"!="" {
+
+
+matrix `estim' = `betas'
+mat list `estim'
+
+
+local levels: list sort levels
+foreach level of local levels{
+
+
+local alpha = 1 - (`level'/100)
+matrix `estim' = `estim', `betas' + invnormal(`alpha'/2)*`se', `betas' + invnormal(1 - `alpha'/2)*`se'
+
+
+} 
+
+}
+
+
+if "`se'"=="" | "`betas'"=="" {
+
+
+tempname se betas
 
 local comand1 = e(cmd)
 local comand2 = e(cmd2)
@@ -54,20 +82,6 @@ local level  = r(level) // confidence level
 matrix define `betas' = e(b)'
 mata st_matrix("`se'",sqrt(diagonal(st_matrix("e(V)")))) // matrix of se
 
-*}
-
-*if "`comand1'" == "lpdid" {
-*
-*matrix define `table' = e(results) 
-*matrix define `betas' = `table'[1,....]
-*
-*----
-*
-*mata st_matrix("`se'",sqrt(diagonal(st_matrix("e(V)")))) // matrix of se
-*
-*
-*}
-
 matrix `estim' = `betas'
 
 local levels: list sort levels
@@ -75,7 +89,10 @@ local levels: list sort levels
 foreach level of local levels{ 
 
 local alpha = 1 - (`level'/100)
+
 matrix `estim' = `estim', `betas' + invt(`df', `alpha'/2)*`se', `betas' + invt(`df',1-`alpha'/2)*`se'
+
+
 }
 
 matrix check1= `estim'
@@ -88,10 +105,6 @@ local pre_test
 local post_test 
 local index_pre = 0
 local index_post = 0
-
-mat `results' = J(1,`=colsof(`estim')'+1, .)
-
-
 
 if "`comand2'" != "xtevent" local vars = e(indepvars)
 if "`comand2'" == "xtevent" local vars = e(inexog)
@@ -121,11 +134,6 @@ foreach var of local vars {
 	}
 }
 
-*test `pre_test'
-*local p_pre = trim(string(r(p),"%-9.3fc")) 
-
-*test `post_test'
-*local p_pos = trim(string(r(p),"%-9.3fc"))
 
 if "`uci'" != ""{
 
@@ -161,9 +169,6 @@ mat list `estim'
 local levels: list sort levels
 foreach level of local levels{ 
 
-*estat event, level(`level')
-*matrix tabl =  r(table)'
-*matrix tabl = tabl[...., 5..6]
 
 matrix `tabl' = e(table_`level')
  matrix `tabl' = `tabl'[...., 5..6]
@@ -171,6 +176,10 @@ matrix `tabl' = e(table_`level')
 mat list `estim' 
  
 matrix `estim' = `estim', `tabl'
+
+}
+
+}
 
 }
 
@@ -191,16 +200,16 @@ foreach var of local vars {
 	}
 }
 
-if e(cmd) != "csdid"{
-test `pre_test'
-local p_pre = trim(string(r(p),"%-9.3fc")) 
+*if e(cmd) != "csdid"{
+*test `pre_test'
+*local p_pre = trim(string(r(p),"%-9.3fc")) 
+*
+*test `post_test'
+*local p_pos = trim(string(r(p),"%-9.3fc"))
+*
+*}
 
-test `post_test'
-local p_pos = trim(string(r(p),"%-9.3fc"))
 
-}
-
-}
 
 
 *** Prepare to make plot ----------------------------------------------------------------
