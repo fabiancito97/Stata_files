@@ -141,14 +141,22 @@ matrix `results' = `results', `uniform_ci'
 
 }
 
-if e(cmd) == "csdid2" {
+if e(cmd) == "csdid2" | e(cmd) == "csdid"{
 * Output
 *local N = trim(string(`n_size',"%-9.0fc"))
 
 *estat event
-matrix define `betas' = e(b)'
+if e(cmd) == "csdid2"{
+ matrix define `betas' = e(b)
+ matrix `betas' = `betas'[1,1..7]
+ matrix `betas' = `betas''
+ 
+ }
+ 
+if e(cmd) == "csdid" matrix define `betas' = e(table_90)[1..7,1]
 
 matrix `estim' = `betas'
+mat list `estim'
 
 local levels: list sort levels
 foreach level of local levels{ 
@@ -159,6 +167,8 @@ foreach level of local levels{
 
 matrix `tabl' = e(table_`level')
  matrix `tabl' = `tabl'[...., 5..6]
+ 
+mat list `estim' 
  
 matrix `estim' = `estim', `tabl'
 
@@ -181,18 +191,19 @@ foreach var of local vars {
 	}
 }
 
+if e(cmd) != "csdid"{
 test `pre_test'
 local p_pre = trim(string(r(p),"%-9.3fc")) 
 
 test `post_test'
 local p_pos = trim(string(r(p),"%-9.3fc"))
 
+}
 
 }
 
 
 *** Prepare to make plot ----------------------------------------------------------------
-
 
 mat list `results'
 
@@ -200,6 +211,7 @@ mat list `results'
 
 svmat `results'
 drop if `results'1 == .
+
 
 
 
@@ -237,7 +249,6 @@ if "`comand2'" == "xtevent" {
 
 *** Calculate pre-trend
 reg `results'2 `results'1 if `results'1<=`compar'
-
 
 tempvar pre_trend
 predict `pre_trend', xb
