@@ -122,6 +122,9 @@ if "`comand1'" == "lpdid"{
 	}
 }
 
+
+/*
+
 foreach var of local vars {
 	if strpos("`var'", "`pre_cof'") {
 		local pre_test `pre_test' (`var'=0)
@@ -133,7 +136,7 @@ foreach var of local vars {
 		matrix `results' = `results' \ real(substr("`var'", strlen("`post_cof'")+1, strlen("`var'"))), `estim'[rownumb(`estim',"`var'"), ....]
 	}
 }
-
+*/
 
 if "`uci'" != ""{
 
