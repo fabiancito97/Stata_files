@@ -36,7 +36,7 @@
 * version 1.02: - fixed bug in Merge() when more than 1 column of new statistics
 *					 - removed typo in syntax statement for -vlstyle- & -spacebef-
 *							options (in v1.01 only)
-
+capture program drop frmttable2
 program define frmttable2
    version 10.1
    syntax [using/], [Statmat(string)  		/// matrix of data for table
@@ -205,6 +205,7 @@ program define frmttable2
 	}
 end  // end of frmttable
 
+capture program drop Clear
 program define Clear
    version 10.1
 	// clear _FrmtT (for use with merge in loops)
