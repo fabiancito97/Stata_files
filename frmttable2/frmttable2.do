@@ -37,7 +37,7 @@
 *					 - removed typo in syntax statement for -vlstyle- & -spacebef-
 *							options (in v1.01 only)
 
-program define frmttable
+program define frmttable2
    version 10.1
    syntax [using/], [Statmat(string)  		/// matrix of data for table
    					  SUBstat(int 0)      	/// # cols statmat that are substats 
